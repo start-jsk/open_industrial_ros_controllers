@@ -2,7 +2,7 @@
   <arg name="controller_argument" default="" />
   <arg name="controller_ip" default="133.11.216.51" />
   <node pkg="denso_controller" type="main" name="realtime_loop"
-        aalaunch-prefix="xterm -e gdb --args"
+        gdb-launch-prefix="xterm -e gdb --args"
         args="-x $(find vs060)/model/VS060A1_AV6_NNN_NNN.urdf -s $(arg controller_argument)" output="screen">
     <param name="udp_timeout" value="9000" />
     <!-- <param name="udp_timeout" value="100000" /> -->
