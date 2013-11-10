@@ -22,7 +22,11 @@
 
 
 namespace OpenControllersInterface {
-  typedef std::vector<pr2_mechanism_model::Transmission*>::iterator TransmissionIterator;
+  // if groovy
+  //typedef std::vector<pr2_mechanism_model::Transmission>::iterator TransmissionIterator;
+  // if hydro
+  typedef std::vector<boost::shared_ptr<pr2_mechanism_model::Transmission> >::iterator TransmissionIterator;
+  //
   typedef boost::accumulators::accumulator_set<double, boost::accumulators::stats<boost::accumulators::tag::max, boost::accumulators::tag::mean> > DoubleAccumulatorSet;
   struct Stat {
     DoubleAccumulatorSet ec_acc;
