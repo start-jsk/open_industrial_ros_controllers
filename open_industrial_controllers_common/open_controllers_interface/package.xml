@@ -1,0 +1,30 @@
+<package>
+  <name>open_controllers_interface</name>
+
+  <version>0.1.0</version>
+  <description>open_controllers_interface</description>
+  <maintainer email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</maintainer>
+
+  <license>BSD</license>
+
+
+  <author email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</author>
+  <author email="k-okada@jsk.t.u-tokyo.ac.jp">Kei Okada</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>pr2_controller_manager</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>realtime_tools</build_depend>
+  <build_depend>diagnostic_msgs</build_depend>
+  <build_depend>diagnostic_updater</build_depend>
+
+  <run_depend>pr2_controller_manager</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_srvs</run_depend>
+  <run_depend>realtime_tools</run_depend>
+  <run_depend>diagnostic_msgs</run_depend>
+  <run_depend>diagnostic_updater</run_depend>
+
+</package>
