@@ -1,3 +1,0 @@
-std_msgs/Float64MultiArray joint
-bool plan_only
-string group_name
