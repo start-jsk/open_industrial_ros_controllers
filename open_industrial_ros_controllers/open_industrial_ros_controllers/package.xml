@@ -15,8 +15,7 @@
   <url type="repository">https://github.com/start-jsk/open-industrial-ros-controllers</url>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <run_depend>densowave</run_depend>
-  <run_depend>open_industrial_controllers_common</run_depend>
+  <run_depend>open_controllers_interface</run_depend>
 
   <export><metapackage/></export>
 </package>

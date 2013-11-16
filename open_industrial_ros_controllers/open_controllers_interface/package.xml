@@ -4,9 +4,8 @@
   <version>0.1.0</version>
   <description>open_controllers_interface</description>
   <maintainer email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</maintainer>
-
+  <maintainer email="iisaito@opensource-robotics.tokyo.jp">Isaac Isao Saito</maintainer>
   <license>BSD</license>
-
 
   <author email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</author>
   <author email="k-okada@jsk.t.u-tokyo.ac.jp">Kei Okada</author>
