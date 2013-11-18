@@ -1,7 +1,7 @@
 <package>
   <name>open_controllers_interface</name>
 
-  <version>0.1.1</version>
+  <version>0.1.2</version>
   <description>open_controllers_interface</description>
   <maintainer email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</maintainer>
   <maintainer email="iisaito@opensource-robotics.tokyo.jp">Isaac Isao Saito</maintainer>
