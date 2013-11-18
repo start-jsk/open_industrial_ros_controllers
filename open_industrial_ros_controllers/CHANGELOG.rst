@@ -2,6 +2,9 @@
 Changelog for package open_industrial_ros_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.1.1 (2013-11-18)
 ------------------
 
