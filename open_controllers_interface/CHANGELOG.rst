@@ -2,6 +2,11 @@
 Changelog for package open_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* remove unused %s, this causes segfault as reported on #14
+* Contributors: Wataru Yasuda
+
 0.1.3 (2013-12-07)
 ------------------
 
