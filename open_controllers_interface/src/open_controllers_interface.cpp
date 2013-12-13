@@ -242,12 +242,12 @@ namespace OpenControllersInterface {
     if (!node.getParam("pidfile", pidfile)) {
       pidfile = "open_controller.pid";
     }
-    ROS_INFO("pidfile is: %s %s", pidfile.c_str());
+    ROS_INFO("pidfile is: %s", pidfile.c_str());
 
     if (!node.getParam("piddir", piddir)) {
       piddir = "/var/tmp/run/";
     }
-    ROS_INFO("piddir is: %s %s", piddir.c_str());
+    ROS_INFO("piddir is: %s", piddir.c_str());
     
     if (stats_publish_p) {
       rtpublisher = new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2);
