@@ -57,6 +57,12 @@ namespace OpenControllersInterface {
     virtual bool updateJoints(struct timespec*) = 0;
     virtual void finalizeHW() = 0;
 
+    /**
+     * Tries to lock all pages mapped into the address space of the calling process,
+     * in an effort to avoid delay.
+     *
+     * @return bool False if failed to lock all pages.
+     */
     static bool initRT();
     
     void setAllowUnprogrammedP(bool val) {
@@ -92,7 +98,12 @@ namespace OpenControllersInterface {
     bool publishTraceService(std_srvs::Empty::Request &req,
            std_srvs::Empty::Response &resp);
     
-    // virtual function you need to impelement
+    /**
+     * Initialize ROS parameters if necessary,
+     * instantiate realtime publisher for ROS and start publishing diagnostics.
+     * set up realtime context (determine loop length, PID file etc.)
+     * Also initialize hardware connection, load robot description.
+     */
     void initialize();
     void startMain();
     void finalize();
