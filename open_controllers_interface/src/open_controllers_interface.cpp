@@ -259,16 +259,39 @@ namespace OpenControllersInterface {
       exit(1);
     }
     
-    int policy;
-    TiXmlElement *root;
-    TiXmlElement *root_element;
-    
     // Initialize the hardware interface
     //EthercatHardware ec(name);
     //ec.init(g_options.interface_, g_options.allow_unprogrammed_);
+    initializeCM();
+    loadRobotDescription();
     initializeHW();
     
+    for (size_t i = 0; i < cm->state_->joint_states_.size(); i++) {
+      cm->state_->joint_states_[i].calibrated_ = true;
+    }
+
+   // Publish one-time before entering real-time to pre-allocate message vectors
+    publishDiagnostics(); //ueda
+
+    //Start Non-realtime diagonostic thread
+    boost::thread t(&OpenController::diagnosticLoop, this);
+
+    // Set to realtime scheduler for this thread
+#if 0                           // disable
+    struct sched_param thread_param;
+    policy = SCHED_FIFO;
+    thread_param.sched_priority = sched_get_priority_max(policy);
+    if ( pthread_setschedparam(pthread_self(), policy, &thread_param) < -1 ) {
+      perror("sched_setscheduler");
+    }
+#endif
+  }
+
+  void OpenController::loadRobotDescription() {
     // Load robot description
+    TiXmlElement *root;
+    TiXmlElement *root_element;
+    
     TiXmlDocument xml;
     struct stat st;
     if (0 == stat(robot_xml_file.c_str(), &st))
@@ -304,27 +327,6 @@ namespace OpenControllersInterface {
     else {
       ROS_INFO("success to initialize the controller manager");
     }
-
-
-    for (size_t i = 0; i < cm->state_->joint_states_.size(); i++) {
-      cm->state_->joint_states_[i].calibrated_ = true;
-    }
-
-   // Publish one-time before entering real-time to pre-allocate message vectors
-    publishDiagnostics(); //ueda
-
-    //Start Non-realtime diagonostic thread
-    boost::thread t(&OpenController::diagnosticLoop, this);
-
-    // Set to realtime scheduler for this thread
-#if 0                           // disable
-    struct sched_param thread_param;
-    policy = SCHED_FIFO;
-    thread_param.sched_priority = sched_get_priority_max(policy);
-    if ( pthread_setschedparam(pthread_self(), policy, &thread_param) < -1 ) {
-      perror("sched_setscheduler");
-    }
-#endif
   }
 
   double OpenController::now() {

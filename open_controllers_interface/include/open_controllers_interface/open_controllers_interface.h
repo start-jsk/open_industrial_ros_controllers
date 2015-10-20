@@ -94,6 +94,7 @@ namespace OpenControllersInterface {
     
     // virtual function you need to impelement
     void initialize();
+    void loadRobotDescription();
     void startMain();
     void finalize();
 
@@ -106,6 +107,7 @@ namespace OpenControllersInterface {
   protected:
     int lock_fd(int fd);
     virtual void initializeROS(ros::NodeHandle& node) = 0;
+    virtual void initializeCM() = 0;
     virtual void initializeHW() = 0;
     
     void publishDiagnostics();
