@@ -89,7 +89,7 @@ namespace OpenControllersInterface {
   }
 
   void OpenController::publishDiagnostics() {
-    if (publisher_ && publisher_->trylock())
+    if (!!publisher_ && publisher_->trylock())
     {
       accumulator_set<double, stats<tag::max, tag::mean> > zero;
       vector<diagnostic_msgs::DiagnosticStatus> statuses;
@@ -216,7 +216,7 @@ namespace OpenControllersInterface {
                               &OpenController::publishTraceService,
                               this);
     
-    publisher_ = new realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray>(node, "/diagnostics", 2);
+    publisher_.reset(new realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray>(node, "/diagnostics", 2));
 
     if (!node.getParam("not_sleep_clock", not_sleep_clock_)) {
       not_sleep_clock_ = false;
@@ -250,7 +250,7 @@ namespace OpenControllersInterface {
     ROS_INFO("piddir is: %s", piddir_.c_str());
     
     if (stats_publish_p_) {
-      rtpublisher_ = new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2);
+      rtpublisher_.reset(new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2));
     }
     
     // initialize pid file
@@ -349,7 +349,7 @@ namespace OpenControllersInterface {
     double jitter = now() - start;
     g_stats_.jitter_acc(jitter);
     // Publish realtime loops statistics, if requested
-    if (rtpublisher_)
+    if (!!rtpublisher_)
       {
         if (rtpublisher_->trylock())
           {
@@ -554,11 +554,11 @@ namespace OpenControllersInterface {
     ec.update(false, true);
 #endif
     //pthread_join(diagnosticThread, 0);
-    if (publisher_) {
+    if (!!publisher_) {
       publisher_->stop();
-      publisher_ = NULL;
+      publisher_.reset();
     }
-    delete rtpublisher_;
+    rtpublisher_.reset();
     //ros::shutdown();
     //return (void *)rv;
     fprintf(stderr, "exiting from finalize\n");

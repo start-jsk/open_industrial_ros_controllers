@@ -48,10 +48,6 @@ namespace OpenControllersInterface {
     double rt_loop_frequency;
   };
 
-
-  class OpenControllerException {
-  };
-  
   class OpenController {
   public:
     OpenController();
@@ -134,8 +130,8 @@ namespace OpenControllersInterface {
     std::string g_robot_desc_;
     pr2_hardware_interface::HardwareInterface* hw_;
     boost::shared_ptr<pr2_controller_manager::ControllerManager> cm_;
-    realtime_tools::RealtimePublisher<std_msgs::Float64> *rtpublisher_;
-    realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> *publisher_;
+    boost::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::Float64> > rtpublisher_;
+    boost::shared_ptr<realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> > publisher_;
     Stat g_stats_;
 
     ros::ServiceServer reset_service_;
