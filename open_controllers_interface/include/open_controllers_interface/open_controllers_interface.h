@@ -122,7 +122,6 @@ namespace OpenControllersInterface {
     bool g_reset_motors_;
     bool g_quit_;;
     bool g_halt_requested_;
-    bool g_halt_motors_;
     bool g_publish_trace_requested_;
     std::string robot_xml_file_;
     double min_acceptable_rt_loop_frequency_;

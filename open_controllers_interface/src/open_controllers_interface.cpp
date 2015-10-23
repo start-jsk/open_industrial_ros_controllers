@@ -397,7 +397,6 @@ namespace OpenControllersInterface {
       bool success_update_joint = false;
       double start = now();
       if (g_reset_motors_) {
-        //ec.update(true, g_halt_motors_);
         g_reset_motors_ = false;
         // Also, clear error flags when motor reset is requested
         g_stats_.rt_loop_not_making_timing = false;
@@ -428,7 +427,6 @@ namespace OpenControllersInterface {
         ec.publishTrace(-1,"",0,0);
 #endif
       }
-      g_halt_motors_ = false;
       double after_ec = now();
       if (success_update_joint) {
         cm_->update();
@@ -459,7 +457,6 @@ namespace OpenControllersInterface {
         double avg_rt_loop_frequency = rt_loop_history.average();
         if (avg_rt_loop_frequency < min_acceptable_rt_loop_frequency_)
         {
-          g_halt_motors_ = true;
           if (!g_stats_.rt_loop_not_making_timing)
           {
             // Only update this value if motors when this first occurs (used for diagnostics error message)
@@ -533,7 +530,6 @@ namespace OpenControllersInterface {
       {
         fprintf(stderr, "detect halt request\n");
         g_quit_ = true;
-        g_halt_motors_ = true;
         g_halt_requested_ = false;
       }
       //ROS_INFO("end of loop");
