@@ -93,8 +93,10 @@ namespace OpenControllersInterface {
         ControllerStatusPtr st = recoverController();
         if (!st || !st->isHealthy())
         {
+          ROS_FATAL("oh no, no way to recover! quit!");
           g_quit_ = true;
         }
+        g_reset_motors_ = false;
       }
     }
     ROS_INFO("good bye start()");
