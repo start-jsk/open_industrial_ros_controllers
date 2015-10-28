@@ -48,11 +48,21 @@ namespace OpenControllersInterface {
     double rt_loop_frequency;
   };
 
+
+  class ControllerStatus {
+    public:
+    ControllerStatus(){}
+    virtual ~ControllerStatus(){}
+    virtual bool isHealthy(){return true;}
+  };
+  typedef boost::shared_ptr<ControllerStatus> ControllerStatusPtr;
+
   class OpenController {
   public:
     OpenController();
     virtual ~OpenController();
-    virtual bool updateJoints(struct timespec*) = 0;
+    virtual ControllerStatusPtr updateJoints(struct timespec*) = 0;
+    virtual ControllerStatusPtr recoverController() = 0;
     virtual void finalizeHW() = 0;
 
     static bool initRT();

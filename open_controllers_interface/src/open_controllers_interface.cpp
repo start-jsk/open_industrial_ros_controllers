@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <boost/cast.hpp>
 
 #include <open_controllers_interface/open_controllers_interface.h>
 
@@ -85,7 +86,18 @@ namespace OpenControllersInterface {
   }
 
   void OpenController::start() {
-    startMain();
+    while(!g_quit_) {
+      startMain();
+      if (g_reset_motors_)
+      {
+        ControllerStatusPtr st = recoverController();
+        if (!st || !st->isHealthy())
+        {
+          g_quit_ = true;
+        }
+      }
+    }
+    ROS_INFO("good bye start()");
   }
 
   void OpenController::publishDiagnostics() {
@@ -388,7 +400,7 @@ namespace OpenControllersInterface {
     struct timespec last_exec_time;
     clock_gettime(CLOCK_REALTIME, &last_exec_time);
     g_stats_.loop_count = 0;
-    while (!g_quit_) {
+    while (!g_quit_ && !g_reset_motors_) {
       g_stats_.loop_count++;
       // Track how long the actual loop takes
       double this_loop_start = now();
@@ -397,9 +409,9 @@ namespace OpenControllersInterface {
       bool success_update_joint = false;
       double start = now();
       if (g_reset_motors_) {
-        g_reset_motors_ = false;
         // Also, clear error flags when motor reset is requested
         g_stats_.rt_loop_not_making_timing = false;
+        break; // go to recoverController
       }
       else {
         // struct timespec current_time;
@@ -413,7 +425,9 @@ namespace OpenControllersInterface {
 
         struct timespec exec_time;
 
-        success_update_joint = updateJoints(&exec_time);
+        ControllerStatusPtr status = updateJoints(&exec_time);
+        success_update_joint = status->isHealthy();
+        g_reset_motors_ = !success_update_joint;
         // double diff = timespecDiff(&exec_time, &last_exec_time);
         // ROS_INFO("diff: %f", diff);
         last_exec_time.tv_sec = exec_time.tv_sec;
@@ -532,9 +546,8 @@ namespace OpenControllersInterface {
         g_quit_ = true;
         g_halt_requested_ = false;
       }
-      //ROS_INFO("end of loop");
     }
-    fprintf(stderr, "good bye startMain\n");
+    ROS_INFO("good bye startMain()");
   }
 
   void OpenController::finalize() {
@@ -692,8 +705,7 @@ namespace OpenControllersInterface {
   }
 
   Finalizer::~Finalizer() {
-    //ROS_WARN("finalizing");
-    fprintf(stderr, "Finalizer::~Finalizer\n");
+    ROS_WARN("Finalizer::~Finalizer is called");
     controller->finalize();
   }
 }
