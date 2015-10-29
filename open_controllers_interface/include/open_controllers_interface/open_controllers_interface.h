@@ -49,30 +49,38 @@ namespace OpenControllersInterface {
   };
 
 
-  
+  class ControllerStatus {
+    public:
+    ControllerStatus(){}
+    virtual ~ControllerStatus(){}
+    virtual bool isHealthy(){return true;}
+  };
+  typedef boost::shared_ptr<ControllerStatus> ControllerStatusPtr;
+
   class OpenController {
   public:
     OpenController();
     virtual ~OpenController();
-    virtual bool updateJoints(struct timespec*) = 0;
+    virtual ControllerStatusPtr updateJoints(struct timespec*) = 0;
+    virtual ControllerStatusPtr recoverController() = 0;
     virtual void finalizeHW() = 0;
 
     static bool initRT();
     
     void setAllowUnprogrammedP(bool val) {
-      allow_unprogrammed_p = val;
+      allow_unprogrammed_p_ = val;
     }
     
     void setStatsPublishP(bool val) {
-      stats_publish_p = val;
+      stats_publish_p_ = val;
     }
     
     void setRobotXMLFile(std::string val) {
-      robot_xml_file = val;
+      robot_xml_file_ = val;
     }
 
     bool setDryRun(bool _dryrun) {
-      dryrunp = _dryrun;
+      dryrunp_ = _dryrun;
       return _dryrun;
     }
 
@@ -94,6 +102,7 @@ namespace OpenControllersInterface {
     
     // virtual function you need to impelement
     void initialize();
+    void loadRobotDescription();
     void startMain();
     void finalize();
 
@@ -106,6 +115,7 @@ namespace OpenControllersInterface {
   protected:
     int lock_fd(int fd);
     virtual void initializeROS(ros::NodeHandle& node) = 0;
+    virtual void initializeCM() = 0;
     virtual void initializeHW() = 0;
     
     void publishDiagnostics();
@@ -113,31 +123,29 @@ namespace OpenControllersInterface {
     void timespecInc(struct timespec &tick, int nsec);
     double publishJitter(double start);
 
-    std::string piddir;
-    std::string pidfile;
-    bool dryrunp;
-    bool not_sleep_clock;
-    bool allow_unprogrammed_p;
-    bool stats_publish_p;
-    bool initialized_p;
-    bool g_reset_motors;
-    bool g_quit;
-    bool g_halt_requested;
-    bool g_halt_motors;
-    bool g_publish_trace_requested;
-    std::string robot_xml_file;
-    double min_acceptable_rt_loop_frequency;
-    double period;
-    std::string g_robot_desc;
-    pr2_hardware_interface::HardwareInterface* hw;
-    boost::shared_ptr<pr2_controller_manager::ControllerManager> cm;
-    realtime_tools::RealtimePublisher<std_msgs::Float64> *rtpublisher;
-    realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> *publisher;
-    Stat g_stats;
+    std::string piddir_;
+    std::string pidfile_;
+    bool dryrunp_;
+    bool not_sleep_clock_;
+    bool allow_unprogrammed_p_;
+    bool stats_publish_p_;
+    bool g_reset_motors_;
+    bool g_quit_;;
+    bool g_halt_requested_;
+    bool g_publish_trace_requested_;
+    std::string robot_xml_file_;
+    double min_acceptable_rt_loop_frequency_;
+    double period_;
+    std::string g_robot_desc_;
+    pr2_hardware_interface::HardwareInterface* hw_;
+    boost::shared_ptr<pr2_controller_manager::ControllerManager> cm_;
+    boost::shared_ptr<realtime_tools::RealtimePublisher<std_msgs::Float64> > rtpublisher_;
+    boost::shared_ptr<realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray> > publisher_;
+    Stat g_stats_;
 
-    ros::ServiceServer reset_service;
-    ros::ServiceServer halt_service;
-    ros::ServiceServer publishTrace_service;
+    ros::ServiceServer reset_service_;
+    ros::ServiceServer halt_service_;
+    ros::ServiceServer publishTrace_service_;
     
   private:
   };
