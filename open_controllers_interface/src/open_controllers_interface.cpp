@@ -493,10 +493,10 @@ namespace OpenControllersInterface {
         (tick.tv_sec + double(tick.tv_nsec)/NSEC_PER_SECOND);
       if (overrun_time > 0.0)
       {
-        ROS_WARN("overrun: %f", overrun_time);
+        ROS_WARN("  overrun: %f", overrun_time);
         double jitter = publishJitter(start);
-        ROS_WARN("jitter: %f", jitter);
-        ROS_WARN("loop:   %d", g_stats_.loop_count);
+        ROS_WARN("  jitter: %f", jitter);
+        ROS_WARN("  loop:   %d", g_stats_.loop_count);
         // Total amount of time the loop took to run
         g_stats_.overrun_loop_sec = overrun_time;
 
@@ -538,7 +538,7 @@ namespace OpenControllersInterface {
                            + double(sleep_after.tv_nsec-sleep_before.tv_nsec)/NSEC_PER_SECOND);
       //double jitter = (after.tv_sec - tick.tv_sec + double(after.tv_nsec-tick.tv_nsec)/NSEC_PER_SECOND);
       if (overrun_time > 0.0) {
-        ROS_WARN("sleep_time: %f", sleep_time);
+        ROS_WARN("  sleep_time: %f", sleep_time);
       }
 
       // Halt the motors, if requested by a service call
