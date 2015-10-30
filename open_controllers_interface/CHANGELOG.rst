@@ -2,8 +2,8 @@
 Changelog for package open_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.0 (2015-10-31)
+------------------
 * indent warning output
 * minor fix
 * add a boilerplait for recovering controller
