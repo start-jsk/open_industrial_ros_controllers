@@ -2,6 +2,17 @@
 Changelog for package open_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* indent warning output
+* minor fix
+* add a boilerplait for recovering controller
+* g_halt_motors\_ is not used
+* do not use raw pointer
+* follow standard c++ style class member naming
+* add initializeCM virtual function for pre/post-processing by successor
+* Contributors: Shohei Fujii
+
 1.0.0 (2015-10-30)
 ------------------
 * set default target to indigo

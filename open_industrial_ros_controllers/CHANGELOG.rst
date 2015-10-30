@@ -2,6 +2,9 @@
 Changelog for package open_industrial_ros_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 1.0.0 (2015-10-30)
 ------------------
 * set default target to indigo
