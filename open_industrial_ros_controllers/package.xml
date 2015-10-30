@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>open_industrial_ros_controllers</name>
-  <version>0.1.4</version>
+  <version>1.0.0</version>
   <description><p>This package provides common functionality, especially plugin architecture for industrial robot controllers, much like the one in <a href = "http://wiki.ros.org/pr2_mechanism">pr2_mechanism</a>.</p>
    <p>The plan is in the near future to utilize or integrate with existing other controller packages.</p>
   </description>

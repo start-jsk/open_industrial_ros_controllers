@@ -2,8 +2,8 @@
 Changelog for package open_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.0 (2015-10-30)
+------------------
 * set default target to indigo
 * remove old rosbuild settings
 * Contributors: Kei Okada
