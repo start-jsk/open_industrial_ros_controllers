@@ -44,6 +44,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/mman.h>
+#include <boost/cast.hpp>
 
 #include <open_controllers_interface/open_controllers_interface.h>
 
@@ -56,7 +57,7 @@ static const int USEC_PER_SECOND = 1e6;
 
 namespace OpenControllersInterface {
   OpenController::OpenController():
-    not_sleep_clock(false), initialized_p(false) { // constructor
+    not_sleep_clock_(false) { // constructor
   }
 
   OpenController::~OpenController() {
@@ -64,7 +65,7 @@ namespace OpenControllersInterface {
   }
   bool OpenController::resetMotorsService(std_srvs::Empty::Request &req,
                                           std_srvs::Empty::Response &resp) {
-    g_reset_motors = true;
+    g_reset_motors_ = true;
     return true;
   }
 
@@ -76,7 +77,7 @@ namespace OpenControllersInterface {
   
   bool OpenController::publishTraceService(std_srvs::Empty::Request &req,
                                            std_srvs::Empty::Response &resp) {
-    g_publish_trace_requested = true;
+    g_publish_trace_requested_ = true;
     return true;
   }
 
@@ -85,11 +86,24 @@ namespace OpenControllersInterface {
   }
 
   void OpenController::start() {
-    startMain();
+    while(!g_quit_) {
+      startMain();
+      if (g_reset_motors_)
+      {
+        ControllerStatusPtr st = recoverController();
+        if (!st || !st->isHealthy())
+        {
+          ROS_FATAL("oh no, no way to recover! quit!");
+          g_quit_ = true;
+        }
+        g_reset_motors_ = false;
+      }
+    }
+    ROS_INFO("good bye start()");
   }
 
   void OpenController::publishDiagnostics() {
-    if (publisher && publisher->trylock())
+    if (!!publisher_ && publisher_->trylock())
     {
       accumulator_set<double, stats<tag::max, tag::mean> > zero;
       vector<diagnostic_msgs::DiagnosticStatus> statuses;
@@ -98,26 +112,26 @@ namespace OpenControllersInterface {
       static double max_ec = 0, max_cm = 0, max_loop = 0, max_jitter = 0;
       double avg_ec, avg_cm, avg_loop, avg_jitter;
 
-      avg_ec           = extract_result<tag::mean>(g_stats.ec_acc);
-      avg_cm           = extract_result<tag::mean>(g_stats.cm_acc);
-      avg_loop         = extract_result<tag::mean>(g_stats.loop_acc);
-      max_ec           = std::max(max_ec, extract_result<tag::max>(g_stats.ec_acc));
-      max_cm           = std::max(max_cm, extract_result<tag::max>(g_stats.cm_acc));
-      max_loop         = std::max(max_loop, extract_result<tag::max>(g_stats.loop_acc));
-      g_stats.ec_acc   = zero;
-      g_stats.cm_acc   = zero;
-      g_stats.loop_acc = zero;
+      avg_ec           = extract_result<tag::mean>(g_stats_.ec_acc);
+      avg_cm           = extract_result<tag::mean>(g_stats_.cm_acc);
+      avg_loop         = extract_result<tag::mean>(g_stats_.loop_acc);
+      max_ec           = std::max(max_ec, extract_result<tag::max>(g_stats_.ec_acc));
+      max_cm           = std::max(max_cm, extract_result<tag::max>(g_stats_.cm_acc));
+      max_loop         = std::max(max_loop, extract_result<tag::max>(g_stats_.loop_acc));
+      g_stats_.ec_acc   = zero;
+      g_stats_.cm_acc   = zero;
+      g_stats_.loop_acc = zero;
 
       // Publish average loop jitter
-      avg_jitter         = extract_result<tag::mean>(g_stats.jitter_acc);
-      max_jitter         = std::max(max_jitter, extract_result<tag::max>(g_stats.jitter_acc));
-      g_stats.jitter_acc = zero;
+      avg_jitter         = extract_result<tag::mean>(g_stats_.jitter_acc);
+      max_jitter         = std::max(max_jitter, extract_result<tag::max>(g_stats_.jitter_acc));
+      g_stats_.jitter_acc = zero;
 
       static bool first = true;
       if (first)
       {
         first = false;
-        status.add("Robot Description", g_robot_desc);
+        status.add("Robot Description", g_robot_desc_);
       }
 
       status.addf("Max EtherCAT roundtrip (us)", "%.2f", max_ec*USEC_PER_SECOND);
@@ -128,18 +142,18 @@ namespace OpenControllersInterface {
       status.addf("Avg Total Loop roundtrip (us)", "%.2f", avg_loop*USEC_PER_SECOND);
       status.addf("Max Loop Jitter (us)", "%.2f", max_jitter * USEC_PER_SECOND);
       status.addf("Avg Loop Jitter (us)", "%.2f", avg_jitter * USEC_PER_SECOND);
-      status.addf("Control Loop Overruns", "%d", g_stats.overruns);
-      status.addf("Total Loop Count", "%ul", g_stats.loop_count);
-      status.addf("Recent Control Loop Overruns", "%d", g_stats.recent_overruns);
+      status.addf("Control Loop Overruns", "%d", g_stats_.overruns);
+      status.addf("Total Loop Count", "%ul", g_stats_.loop_count);
+      status.addf("Recent Control Loop Overruns", "%d", g_stats_.recent_overruns);
       status.addf("Last Control Loop Overrun Cause", "ec: %.2fus, cm: %.2fus", 
-                  g_stats.overrun_ec*USEC_PER_SECOND, g_stats.overrun_cm*USEC_PER_SECOND);
-      status.addf("Last Overrun Loop Time (us)", "%.2f", g_stats.overrun_loop_sec * USEC_PER_SECOND);
-      status.addf("Realtime Loop Frequency", "%.4f", g_stats.rt_loop_frequency);
+                  g_stats_.overrun_ec*USEC_PER_SECOND, g_stats_.overrun_cm*USEC_PER_SECOND);
+      status.addf("Last Overrun Loop Time (us)", "%.2f", g_stats_.overrun_loop_sec * USEC_PER_SECOND);
+      status.addf("Realtime Loop Frequency", "%.4f", g_stats_.rt_loop_frequency);
 
       status.name = "Realtime Control Loop";
-      if (g_stats.overruns > 0 && g_stats.last_overrun < 30)
+      if (g_stats_.overruns > 0 && g_stats_.last_overrun < 30)
       {
-        if (g_stats.last_severe_overrun < 30)
+        if (g_stats_.last_severe_overrun < 30)
           status.level = 1;
         else
           status.level = 0;
@@ -150,19 +164,19 @@ namespace OpenControllersInterface {
         status.level = 0;
         status.message = "OK";
       }
-      g_stats.recent_overruns = 0;
-      g_stats.last_overrun++;
-      g_stats.last_severe_overrun++;
+      g_stats_.recent_overruns = 0;
+      g_stats_.last_overrun++;
+      g_stats_.last_severe_overrun++;
 
-      if (g_stats.rt_loop_not_making_timing)
+      if (g_stats_.rt_loop_not_making_timing)
       {
-        status.mergeSummaryf(status.ERROR, "Halting, realtime loop only ran at %.4f Hz", g_stats.halt_rt_loop_frequency);
+        status.mergeSummaryf(status.ERROR, "Halting, realtime loop only ran at %.4f Hz", g_stats_.halt_rt_loop_frequency);
       }
 
       statuses.push_back(status);
-      publisher->msg_.status = statuses;
-      publisher->msg_.header.stamp = ros::Time::now();
-      publisher->unlockAndPublish();
+      publisher_->msg_.status = statuses;
+      publisher_->msg_.header.stamp = ros::Time::now();
+      publisher_->unlockAndPublish();
     }
   }
 
@@ -203,111 +217,71 @@ namespace OpenControllersInterface {
   void OpenController::initialize() {
     ros::NodeHandle node("~");
     initializeROS(node);            // initialize ros anyway
-    reset_service
+    reset_service_
       = node.advertiseService("reset_motors",
                               &OpenController::resetMotorsService,
                               this);
-    halt_service
+    halt_service_
       = node.advertiseService("halt_motors",
                               &OpenController::haltMotorsService,
                               this);
-    publishTrace_service
+    publishTrace_service_
       = node.advertiseService("publish_trace",
                               &OpenController::publishTraceService,
                               this);
     
-    publisher = new realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray>(node, "/diagnostics", 2);
+    publisher_.reset(new realtime_tools::RealtimePublisher<diagnostic_msgs::DiagnosticArray>(node, "/diagnostics", 2));
 
-    if (!node.getParam("not_sleep_clock", not_sleep_clock)) {
-      not_sleep_clock = false;
+    if (!node.getParam("not_sleep_clock", not_sleep_clock_)) {
+      not_sleep_clock_ = false;
     }
 
-    if (!node.getParam("min_acceptable_rt_loop_frequency", min_acceptable_rt_loop_frequency))
+    if (!node.getParam("min_acceptable_rt_loop_frequency", min_acceptable_rt_loop_frequency_))
     {
-      min_acceptable_rt_loop_frequency = 750.0; 
+      min_acceptable_rt_loop_frequency_ = 750.0; 
     }
     else 
     {
-      ROS_WARN("min_acceptable_rt_loop_frequency changed to %f", min_acceptable_rt_loop_frequency);
+      ROS_WARN("min_acceptable_rt_loop_frequency changed to %f", min_acceptable_rt_loop_frequency_);
     }
     
     // read period
-    if (!node.getParam("rt_period", period))
+    if (!node.getParam("rt_period", period_))
     {
       ROS_WARN("failed to read rt_period parameter");
-      period = 1e+6;            // 1ms in nanoseconds
+      period_ = 1e+6;            // 1ms in nanoseconds
     }
-    ROS_INFO("realtime loop period is %f", period);
+    ROS_INFO("realtime loop period is %f", period_);
 
-    if (!node.getParam("pidfile", pidfile)) {
-      pidfile = "open_controller.pid";
+    if (!node.getParam("pidfile", pidfile_)) {
+      pidfile_ = "open_controller.pid";
     }
-    ROS_INFO("pidfile is: %s", pidfile.c_str());
+    ROS_INFO("pidfile is: %s", pidfile_.c_str());
 
-    if (!node.getParam("piddir", piddir)) {
-      piddir = "/var/tmp/run/";
+    if (!node.getParam("piddir", piddir_)) {
+      piddir_ = "/var/tmp/run/";
     }
-    ROS_INFO("piddir is: %s", piddir.c_str());
+    ROS_INFO("piddir is: %s", piddir_.c_str());
     
-    if (stats_publish_p) {
-      rtpublisher = new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2);
+    if (stats_publish_p_) {
+      rtpublisher_.reset(new realtime_tools::RealtimePublisher<std_msgs::Float64>(node, "realtime", 2));
     }
     
     // initialize pid file
     if (setupPidFile() < 0) {
-      ROS_FATAL("pid file (%s/%s) already exists", piddir.c_str(), pidfile.c_str());
+      ROS_FATAL("pid file (%s/%s) already exists", piddir_.c_str(), pidfile_.c_str());
       exit(1);
     }
-    
-    int policy;
-    TiXmlElement *root;
-    TiXmlElement *root_element;
     
     // Initialize the hardware interface
     //EthercatHardware ec(name);
     //ec.init(g_options.interface_, g_options.allow_unprogrammed_);
+    initializeCM();
+    loadRobotDescription();
     initializeHW();
     
-    // Load robot description
-    TiXmlDocument xml;
-    struct stat st;
-    if (0 == stat(robot_xml_file.c_str(), &st))
-    {
-      xml.LoadFile(robot_xml_file.c_str());
-    }
-    else
-    {
-      ROS_INFO("Xml file not found, reading from parameter server");
-      ros::NodeHandle top_level_node;
-      if (top_level_node.getParam(robot_xml_file.c_str(), g_robot_desc))
-        xml.Parse(g_robot_desc.c_str());
-      else
-      {
-        ROS_FATAL("Could not load the xml from parameter server: %s", robot_xml_file.c_str());
-        throw "end";
-      }
-    }
-    root_element = xml.RootElement();
-    root = xml.FirstChildElement("robot");
-    if (!root || !root_element)
-    {
-      ROS_FATAL("Could not parse the xml from %s", robot_xml_file.c_str());
-      throw "end";
-    }
-
-    // Initialize the controller manager from robot description
-    if (!cm->initXml(root))
-    {
-      ROS_FATAL("Could not initialize the controller manager");
-      throw "end";
-    }
-    else {
-      ROS_INFO("success to initialize the controller manager");
-    }
-
-
-    for (size_t i = 0; i < cm->state_->joint_states_.size(); i++) {
-      cm->state_->joint_states_[i].calibrated_ = true;
+    for (size_t i = 0; i < cm_->state_->joint_states_.size(); i++) {
+      cm_->state_->joint_states_[i].calibrated_ = true;
     }
 
    // Publish one-time before entering real-time to pre-allocate message vectors
@@ -325,6 +299,48 @@ namespace OpenControllersInterface {
       perror("sched_setscheduler");
     }
 #endif
+  }
+
+  void OpenController::loadRobotDescription() {
+    // Load robot description
+    TiXmlElement *root;
+    TiXmlElement *root_element;
+    
+    TiXmlDocument xml;
+    struct stat st;
+    if (0 == stat(robot_xml_file_.c_str(), &st))
+    {
+      xml.LoadFile(robot_xml_file_.c_str());
+    }
+    else
+    {
+      ROS_INFO("Xml file not found, reading from parameter server");
+      ros::NodeHandle top_level_node;
+      if (top_level_node.getParam(robot_xml_file_.c_str(), g_robot_desc_))
+        xml.Parse(g_robot_desc_.c_str());
+      else
+      {
+        ROS_FATAL("Could not load the xml from parameter server: %s", robot_xml_file_.c_str());
+        throw "end";
+      }
+    }
+    root_element = xml.RootElement();
+    root = xml.FirstChildElement("robot");
+    if (!root || !root_element)
+    {
+      ROS_FATAL("Could not parse the xml from %s", robot_xml_file_.c_str());
+      throw "end";
+    }
+
+    // Initialize the controller manager from robot description
+    if (!cm_->initXml(root))
+    {
+      ROS_FATAL("Could not initialize the controller manager");
+      throw "end";
+    }
+    else {
+      ROS_INFO("success to initialize the controller manager");
+    }
   }
 
   double OpenController::now() {
@@ -345,14 +361,14 @@ namespace OpenControllersInterface {
   double OpenController::publishJitter(double start) 
   {
     double jitter = now() - start;
-    g_stats.jitter_acc(jitter);
+    g_stats_.jitter_acc(jitter);
     // Publish realtime loops statistics, if requested
-    if (rtpublisher)
+    if (!!rtpublisher_)
       {
-        if (rtpublisher->trylock())
+        if (rtpublisher_->trylock())
           {
-            rtpublisher->msg_.data  = jitter;
-            rtpublisher->unlockAndPublish();
+            rtpublisher_->msg_.data  = jitter;
+            rtpublisher_->unlockAndPublish();
           }
       }
     return jitter;
@@ -372,38 +388,37 @@ namespace OpenControllersInterface {
 
     // Keep history of last 3 calculation intervals.
     // the value is Hz we supporsed for realtime loop to be in
-    RTLoopHistory rt_loop_history(3, 1.0 / (period / NSEC_PER_SECOND)); 
-    double rt_loop_monitor_period = 0.6 / 3;
+    RTLoopHistory rt_loop_history(3, 1.0 / (period_ / NSEC_PER_SECOND)); 
+    double rt_loop_monitor_period_ = 0.6 / 3;
     unsigned long rt_cycle_count = 0;
     struct timespec tick;
     clock_gettime(CLOCK_REALTIME, &tick);
     // Snap to the nearest second
-    timespecInc(tick, period);
+    timespecInc(tick, period_);
     clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL);
     double last_published = now();
     double last_loop_start = now();
     double last_rt_monitor_time = now();
     struct timespec last_exec_time;
     clock_gettime(CLOCK_REALTIME, &last_exec_time);
-    g_stats.loop_count = 0;
-    while (!g_quit) {
-      g_stats.loop_count++;
+    g_stats_.loop_count = 0;
+    while (!g_quit_ && !g_reset_motors_) {
+      g_stats_.loop_count++;
       // Track how long the actual loop takes
       double this_loop_start = now();
-      g_stats.loop_acc(this_loop_start - last_loop_start);
+      g_stats_.loop_acc(this_loop_start - last_loop_start);
       last_loop_start = this_loop_start;
       bool success_update_joint = false;
       double start = now();
-      if (g_reset_motors) {
-        //ec.update(true, g_halt_motors);
-        g_reset_motors = false;
+      if (g_reset_motors_) {
         // Also, clear error flags when motor reset is requested
-        g_stats.rt_loop_not_making_timing = false;
+        g_stats_.rt_loop_not_making_timing = false;
+        break; // go to recoverController
       }
       else {
         // struct timespec current_time;
         // clock_gettime(CLOCK_REALTIME, &current_time);
-        // timespecInc(exec_time, period);
+        // timespecInc(exec_time, period_);
         // if (((exec_time.tv_sec - current_time.tv_sec) + double(exec_time.tv_nsec - current_time.tv_nsec) / NSEC_PER_SECOND) > 0) {
         //   ROS_INFO("sleep %f", ((exec_time.tv_sec - current_time.tv_sec) + double(exec_time.tv_nsec - current_time.tv_nsec) / NSEC_PER_SECOND));
         //   clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &exec_time, NULL);
@@ -412,29 +427,30 @@ namespace OpenControllersInterface {
 
         struct timespec exec_time;
 
-        success_update_joint = updateJoints(&exec_time);
+        ControllerStatusPtr status = updateJoints(&exec_time);
+        success_update_joint = status->isHealthy();
+        g_reset_motors_ = !success_update_joint;
         // double diff = timespecDiff(&exec_time, &last_exec_time);
         // ROS_INFO("diff: %f", diff);
         last_exec_time.tv_sec = exec_time.tv_sec;
         last_exec_time.tv_nsec = exec_time.tv_nsec;
       }
 
-      if (g_publish_trace_requested)
+      if (g_publish_trace_requested_)
       {
-        g_publish_trace_requested = false;
+        g_publish_trace_requested_ = false;
 #if 0
         ec.publishTrace(-1,"",0,0);
 #endif
       }
-      g_halt_motors = false;
       double after_ec = now();
       if (success_update_joint) {
-        cm->update();
+        cm_->update();
       }
       double end = now();
 
-      g_stats.ec_acc(after_ec - start);
-      g_stats.cm_acc(end - after_ec);
+      g_stats_.ec_acc(after_ec - start);
+      g_stats_.cm_acc(end - after_ec);
 
       if ((end - last_published) > 1.0)
       {
@@ -447,30 +463,29 @@ namespace OpenControllersInterface {
       // When realtime loop misses a lot of cycles controllers will perform poorly and may cause robot to shake.
       // Halt motors if realtime loop does not run enough cycles over a given period.
       ++rt_cycle_count;
-      if ((start - last_rt_monitor_time) > rt_loop_monitor_period)
+      if ((start - last_rt_monitor_time) > rt_loop_monitor_period_)
       {
         // Calculate new average rt loop frequency       
-        double rt_loop_frequency = double(rt_cycle_count) / rt_loop_monitor_period;
+        double rt_loop_frequency = double(rt_cycle_count) / rt_loop_monitor_period_;
 
         // Use last X samples of frequency when deciding whether or not to halt
         rt_loop_history.sample(rt_loop_frequency);
         double avg_rt_loop_frequency = rt_loop_history.average();
-        if (avg_rt_loop_frequency < min_acceptable_rt_loop_frequency)
+        if (avg_rt_loop_frequency < min_acceptable_rt_loop_frequency_)
         {
-          g_halt_motors = true;
-          if (!g_stats.rt_loop_not_making_timing)
+          if (!g_stats_.rt_loop_not_making_timing)
           {
             // Only update this value if motors when this first occurs (used for diagnostics error message)
-            g_stats.halt_rt_loop_frequency = avg_rt_loop_frequency;
+            g_stats_.halt_rt_loop_frequency = avg_rt_loop_frequency;
           }
-          g_stats.rt_loop_not_making_timing = true;
+          g_stats_.rt_loop_not_making_timing = true;
         }
-        g_stats.rt_loop_frequency = avg_rt_loop_frequency;
+        g_stats_.rt_loop_frequency = avg_rt_loop_frequency;
         rt_cycle_count = 0;
         last_rt_monitor_time = start;
       }
       // Compute end of next period
-      timespecInc(tick, period);
+      timespecInc(tick, period_);
 
       struct timespec before; 
       clock_gettime(CLOCK_REALTIME, &before); 
@@ -478,41 +493,41 @@ namespace OpenControllersInterface {
         (tick.tv_sec + double(tick.tv_nsec)/NSEC_PER_SECOND);
       if (overrun_time > 0.0)
       {
-        ROS_WARN("overrun: %f", overrun_time);
+        ROS_WARN("  overrun: %f", overrun_time);
         double jitter = publishJitter(start);
-        ROS_WARN("jitter: %f", jitter);
-        ROS_WARN("loop:   %d", g_stats.loop_count);
+        ROS_WARN("  jitter: %f", jitter);
+        ROS_WARN("  loop:   %d", g_stats_.loop_count);
         // Total amount of time the loop took to run
-        g_stats.overrun_loop_sec = overrun_time;
+        g_stats_.overrun_loop_sec = overrun_time;
 
         // We overran, snap to next "period"
         // ueda
-        //timespecInc(tick, (before.tv_nsec / period + 1) * period);
+        //timespecInc(tick, (before.tv_nsec / period_ + 1) * period_);
         tick.tv_sec = before.tv_sec;
-        // tick.tv_nsec = (before.tv_nsec / period) * period;
+        // tick.tv_nsec = (before.tv_nsec / period_) * period_;
         tick.tv_nsec = before.tv_nsec;
-        timespecInc(tick, period);
+        timespecInc(tick, period_);
 
         // initialize overruns
-        if (g_stats.overruns == 0){
-          g_stats.last_overrun = 1000;
-          g_stats.last_severe_overrun = 1000;
+        if (g_stats_.overruns == 0){
+          g_stats_.last_overrun = 1000;
+          g_stats_.last_severe_overrun = 1000;
         }
         // check for overruns
-        if (g_stats.recent_overruns > 10)
-          g_stats.last_severe_overrun = 0;
-        g_stats.last_overrun = 0;
+        if (g_stats_.recent_overruns > 10)
+          g_stats_.last_severe_overrun = 0;
+        g_stats_.last_overrun = 0;
 
-        g_stats.overruns++;
-        g_stats.recent_overruns++;
-        g_stats.overrun_ec = after_ec - start;
-        g_stats.overrun_cm = end - after_ec;
+        g_stats_.overruns++;
+        g_stats_.recent_overruns++;
+        g_stats_.overrun_ec = after_ec - start;
+        g_stats_.overrun_cm = end - after_ec;
       }
 
       struct timespec sleep_before;
       clock_gettime(CLOCK_REALTIME, &sleep_before);
       // Sleep until end of period
-      if (!not_sleep_clock)
+      if (!not_sleep_clock_)
         clock_nanosleep(CLOCK_REALTIME, TIMER_ABSTIME, &tick, NULL);
       if (overrun_time <= 0.0)
         publishJitter(start);
@@ -523,27 +538,25 @@ namespace OpenControllersInterface {
                            + double(sleep_after.tv_nsec-sleep_before.tv_nsec)/NSEC_PER_SECOND);
       //double jitter = (after.tv_sec - tick.tv_sec + double(after.tv_nsec-tick.tv_nsec)/NSEC_PER_SECOND);
       if (overrun_time > 0.0) {
-        ROS_WARN("sleep_time: %f", sleep_time);
+        ROS_WARN("  sleep_time: %f", sleep_time);
       }
 
       // Halt the motors, if requested by a service call
-      if (g_halt_requested)
+      if (g_halt_requested_)
       {
         fprintf(stderr, "detect halt request\n");
-        g_quit = true;
-        g_halt_motors = true;
-        g_halt_requested = false;
+        g_quit_ = true;
+        g_halt_requested_ = false;
       }
-      //ROS_INFO("end of loop");
     }
-    fprintf(stderr, "good bye startMain\n");
+    ROS_INFO("good bye startMain()");
   }
 
   void OpenController::finalize() {
     ROS_WARN("finalizing");
     finalizeHW();
     /* Shutdown all of the motors on exit */
-    for (pr2_hardware_interface::ActuatorMap::const_iterator it = hw->actuators_.begin(); it != hw->actuators_.end(); ++it)
+    for (pr2_hardware_interface::ActuatorMap::const_iterator it = hw_->actuators_.begin(); it != hw_->actuators_.end(); ++it)
     {
       it->second->command_.enable_ = false;
       it->second->command_.effort_ = 0;
@@ -552,11 +565,11 @@ namespace OpenControllersInterface {
     ec.update(false, true);
 #endif
     //pthread_join(diagnosticThread, 0);
-    if (publisher) {
-      publisher->stop();
-      publisher = NULL;
+    if (!!publisher_) {
+      publisher_->stop();
+      publisher_.reset();
     }
-    delete rtpublisher;
+    rtpublisher_.reset();
     //ros::shutdown();
     //return (void *)rv;
     fprintf(stderr, "exiting from finalize\n");
@@ -566,7 +579,7 @@ namespace OpenControllersInterface {
     //EthercatHardware *ec((EthercatHardware *) args);
     struct timespec tick;
     clock_gettime(CLOCK_MONOTONIC, &tick);
-    while (!g_quit) {
+    while (!g_quit_) {
       //ec->collectDiagnostics();
       tick.tv_sec += 1;
       clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &tick, NULL);
@@ -591,9 +604,9 @@ namespace OpenControllersInterface {
     pid_t pid;
     int fd;
     FILE *fp = NULL;
-    boost::filesystem::path fullpath = boost::filesystem::path(piddir) / boost::filesystem::path(pidfile);
+    boost::filesystem::path fullpath = boost::filesystem::path(piddir_) / boost::filesystem::path(pidfile_);
     umask(0);
-    mkdir(piddir.c_str(), 0777);
+    mkdir(piddir_.c_str(), 0777);
     fd = open(fullpath.c_str(), O_RDWR | O_CREAT | O_EXCL, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP | S_IWOTH | S_IROTH);
     if (fd == -1)
     {
@@ -662,7 +675,7 @@ namespace OpenControllersInterface {
   }
 
   void OpenController::cleanupPidFile() {
-    boost::filesystem::path path = boost::filesystem::path(piddir) / boost::filesystem::path(pidfile);
+    boost::filesystem::path path = boost::filesystem::path(piddir_) / boost::filesystem::path(pidfile_);
     unlink(path.c_str());
   }
   
@@ -680,7 +693,7 @@ namespace OpenControllersInterface {
   }
 
   void OpenController::quitRequest() {
-    g_halt_requested = true;
+    g_halt_requested_ = true;
   }
 
   bool OpenController::initRT() {
@@ -694,8 +707,7 @@ namespace OpenControllersInterface {
   }
 
   Finalizer::~Finalizer() {
-    //ROS_WARN("finalizing");
-    fprintf(stderr, "Finalizer::~Finalizer\n");
+    ROS_WARN("Finalizer::~Finalizer is called");
     controller->finalize();
   }
 }
