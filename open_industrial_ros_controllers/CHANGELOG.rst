@@ -2,6 +2,10 @@
 Changelog for package open_industrial_ros_controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* set default target to indigo
+
 0.1.4 (2013-12-13)
 ------------------
 * remove unused %s, this causes segfault as reported on #14

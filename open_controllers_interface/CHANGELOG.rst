@@ -2,6 +2,12 @@
 Changelog for package open_controllers_interface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* set default target to indigo
+* remove old rosbuild settings
+* Contributors: Kei Okada
+
 0.1.4 (2013-12-13)
 ------------------
 * remove unused %s, this causes segfault as reported on #14
