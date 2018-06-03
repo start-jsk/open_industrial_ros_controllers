@@ -6,7 +6,6 @@
    <p>This package provides generic capability for industrial controllers. Please see <a href = "http://wiki.ros.org/open_industrial_ros_controllers">open_industrial_ros_controllers</a> for overall description.</p>
   </description>
   <maintainer email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</maintainer>
-  <maintainer email="iisaito@opensource-robotics.tokyo.jp">Isaac Isao Saito</maintainer>
   <license>BSD</license>
   <author email="ueda@jsk.t.u-tokyo.ac.jp">Ryohei Ueda</author>
   <author email="k-okada@jsk.t.u-tokyo.ac.jp">Kei Okada</author>
